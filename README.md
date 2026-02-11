@@ -14,6 +14,10 @@ This project provides a visual, interactive interface for understanding how Ligh
 
 ## Usage
 
+### Online
+
+Access the live demo at: [https://hodl.camp/bolt4](https://hodl.camp/bolt4)
+
 ### Running Locally
 
 Simply open `index.html` in a modern web browser. No build step or server required.
@@ -60,6 +64,33 @@ mu = HMAC("mu", shared_secret)
 pad = HMAC("pad", ephem_priv)
 ```
 
+### Filler Construction
+
+This filler construction is different from for example [Ellemouton's Sphinx post](https://ellemouton.com/posts/sphinx/).
+
+**Algorithm:**
+
+0. Start with a zero length filler buffer
+
+For each hop (except the destination/last hop):
+
+1. Extend the filler buffer by `payload_length + HMAC_SIZE` (32 bytes)
+2. Generate a ChaCha20 cipher stream using the hop's `rho` key with length `1300 + payload_length + HMAC_SIZE`
+3. XOR the last `filler.length` bytes of the stream into the filler
+
+```
+filler = new Uint8Array(0)
+for i in 0..(num_hops - 1):
+    payload_len = hop[i].payload.length + HMAC_SIZE
+    filler.resize(filler.size + payload_len)
+    
+    stream = generate_cipher_stream(hop[i].rho, ROUTING_INFO_SIZE + payload_len)
+    stream_slice = stream[stream.length - filler.length .. stream.length]
+    filler = filler XOR stream_slice
+```
+
+**Note:** This results in a correctly constructed filler without shifting data. The cipher streams can be stored and reused for the onion wrapping stage.
+
 ### Packet Structure
 
 The final onion packet consists of:
@@ -79,6 +110,7 @@ The final onion packet consists of:
 - [BOLT#04: Onion Routing Message Format](https://github.com/lightning/bolts/blob/master/04-onion-routing.md)
 - [Lightning Network Specification](https://github.com/lightning/bolts)
 - [Routing Hypothesis](https://github.com/rustyrussell/lightning-rfcs/blob/master/lightning-rfc.md)
+- [Sphinx Packet Construction (Ellemouton)](https://ellemouton.com/posts/sphinx/)
 
 ## License
 
